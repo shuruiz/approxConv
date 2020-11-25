@@ -33,7 +33,7 @@ struct ConvPass : public FunctionPass {
 }  // end of anonymous namespace
 
 char ConvPass::ID = 0;
-static RegisterPass<ConvPass> X("ConvPass", "Convolution Pass",
+static RegisterPass<ConvPass> X("convpass", "Convolution Pass",
                              false /* Only looks at CFG */,
                              false /* Analysis Pass */);
 
