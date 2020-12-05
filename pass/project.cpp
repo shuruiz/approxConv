@@ -71,6 +71,80 @@ struct ConvPass : public FunctionPass {
     BranchProbabilityInfo &bpi = getAnalysis<BranchProbabilityInfoWrapperPass>().getBPI(); 
     BlockFrequencyInfo &bfi = getAnalysis<BlockFrequencyInfoWrapperPass>().getBFI();
 
+ //    Value* L = lhs_codegen_elements.back();
+	// Value* R = rhs_codegen_elements.back();
+    
+    //%s = add %a, %b
+
+    //matrix multiplication, 
+    
+
+	// 1. get the value for addition (in input file)
+
+		// void multiply(int mat1[][N],
+		//               int mat2[][N],
+		//               int res[][N])
+		// {
+		//     int i, j, k;
+		//     for (i = 0; i < N; i++) {
+		//         for (j = 0; j < N; j++) {
+		//             res[i][j] = 0;
+		//             for (k = 0; k < N; k++)
+		//                 res[i][j] = res[i][j] + mat1[i][k] * mat2[k][j]; // instruction I
+		//         }
+		//     }
+		// }
+        ////// call the function 
+
+		//     int main()
+		// {
+		//     int i, j;
+		//     int res[N][N]; // To store result
+		//     int mat1[N][N] = { { 1, 1, 1, 1 },
+		//                        { 2, 2, 2, 2 },
+		//                        { 3, 3, 3, 3 },
+		//                        { 4, 4, 4, 4 } };
+		 
+		//     int mat2[N][N] = { { 0.01, 1, 1, 1 },
+		//                        { 2, 2, 2, 2 },
+		//                        { 3, 3, 3, 3 },
+		//                        { 4, 4, 4, 4 } };
+
+    	 // 0.01*1 + 2*2+... 
+		 
+		//     multiply(mat1, mat2, res);
+		 
+		//     cout << "Result matrix is \n";
+		//     for (i = 0; i < N; i++) {
+		//         for (j = 0; j < N; j++)
+		//             cout << res[i][j] << " ";
+		//         cout << "\n";
+		//     }
+		 
+		//     return 0;
+		// }
+
+
+
+
+	// 2. the pass only takes care of two addition (in this file, targeting instruction I above)
+
+	float threshold=0.05; 
+
+    // exam before the for loop 
+
+
+	//run on loop?  http://lists.llvm.org/pipermail/llvm-dev/2016-April/098692.html
+	Instruction * i = <instructionos that store the add operationo>;
+	Value * Va = i->getOperand(0);
+	Value * Vb =i->getOperand(1)
+	if(*Va<= threshold || *Vb<=threshold):
+		// skip the step 
+		continue 
+
+	// printf(*L, *R);
+
+
     return false;
   }
 }; // end of struct ConvPass
