@@ -28,8 +28,10 @@ std::normal_distribution<double> highDist(large_mean, large_std_dev);
 
 const double sparsity = 0.9;
 const int mat_num = 100;
-const int mat_rows = 10;
-const int mat_cols = 10;
+const int input_mat_rows = 10;
+const int input_mat_cols = 10;
+const int kernel_mat_rows = 3;
+const int kernel_mat_cols = 3;
 
 // returns a number between 0 and 1 from a bimodal distribution
 double randGen() {
@@ -52,6 +54,9 @@ int main() {
 	srand(time(NULL));
 
 	for (int mat_i = 0; mat_i < mat_num; ++mat_i) {
+		int mat_rows = mat_i % 2 ? input_mat_rows : kernel_mat_rows;
+		int mat_cols = mat_i % 2 ? input_mat_cols : kernel_mat_cols;
+
 		out << mat_rows << " " << mat_cols << std::endl;
 		for (int i = 0; i < mat_rows*mat_cols; ++i) {
 			out << randGen();
