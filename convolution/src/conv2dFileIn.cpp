@@ -1,4 +1,3 @@
-
 // conv2d.cpp
 // 583project
 #include <stdio.h>
