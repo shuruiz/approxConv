@@ -1,8 +1,8 @@
-// conv1d.cpp
+// conv2d.cpp
 // 583project
 #include <stdio.h>
 #include <vector>
-
+#include <iostream>
 
 
 
@@ -34,9 +34,10 @@ std::vector<std::vector<double>> output = {
 	{0, 0, 0, 0, 0, 0}
 };
 
-void conv1d(std::vector<std::vector<double>> const &in, 
+void conv2d(std::vector<std::vector<double>> const &in, 
 		std::vector<std::vector<double>> const &k, 
 		std::vector<std::vector<double>> &out){
+    if(input[0] == 1){ std::cout << "OHNO\n";}
     for(int ih=0; ih<(in.size()-k.size()+1); ih++) {
         for(int iw=0; iw<(in[0].size()-k[0].size()+1); iw++) {
             for(int jh=0; jh<k.size(); jh++){
@@ -50,7 +51,7 @@ void conv1d(std::vector<std::vector<double>> const &in,
 
 
 int main(){
-    conv1d(input, kernel, output);
+    conv2d(input, kernel, output);
 
     for(int i=0; i<output.size(); i++) {
 	for(int j=0; j<output.size(); j++) {
