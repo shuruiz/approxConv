@@ -36,11 +36,29 @@ struct test: public FunctionPass {
 				DynOpCounts +=count;
 
 				int opcode = i->getOpcode();
-
+				if (opcode==13){
 				Value *va = i->getOperand(0);
 				Value *vb =i->getOperand(1);
-				errs() << 'value'<<*va<<*vb;
+				errs() << "value"<<*va<<*vb;
+				errs()<<"pointer"<<va<<vb;
+				//errs()<<"print as operand"<<va->printAsOperand(va);
+				errs()<<"getname"<<va->getName()<<"\n";
+				errs()<<"getType"<<va->getType()<<"\n";
+				errs()<<"print"<<va<<"\n"<<"dump value\n";
+				//ConstantInt* CI = dyn_cast<ConstantInt>(va);
+				Constant * C = dyn_cast<Constant>(vb);
+				//ConstantInt* C = dyn_cast<ConstantInt>(va);
+				errs()<<"constant cast\n";
+    				if (ConstantFP *constfp_gv = llvm::dyn_cast<llvm::ConstantFP>(C)) {
+                            float gv_fpval = (constfp_gv->getValueAPF()).convertToFloat();
+                           // Fvalue = constfp_gv;
+                            errs() << gv_fpval; // Value retrieved here
+                            // Collect Instruction to modify
 
+
+                        }	
+				//errs()<<"dump"<<va->dump();
+				}
 				if (opcode == 13 || opcode == 15 || opcode == 17 || opcode == 19 || opcode == 20 || opcode == 22 || (opcode<=30 && opcode>=25) || opcode==53 || opcode ==23 ){
 					IALU +=count;
 				}
