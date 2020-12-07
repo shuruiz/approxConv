@@ -1,5 +1,5 @@
-add_llvm_library( LLVMHW2 MODULE
-  project.cpp
+add_llvm_library( LLVMPJT MODULE
+  testpass.cpp
 
   PLUGIN_TOOL
   opt
