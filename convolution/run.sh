@@ -7,7 +7,7 @@
 
 PATH_MYPASS=~/projects/583project/build/convpass/LLVMCONV.so ### Action Required: Specify the path to your pass ###
 NAME_MYPASS=-convpass ### Action Required: Specify the name for your pass ###
-BENCH=src/${1}.cpp
+BENCH=src/${1}.c
 INPUT=${2}
 
 setup(){
@@ -26,7 +26,7 @@ clang -emit-llvm -c ${BENCH} -o ${1}.bc
 # Instrument profiler
 opt -pgo-instr-gen -instrprof ${1}.bc -o ${1}.prof.bc
 # Generate binary executable with profiler embedded
-clang++ -fprofile-instr-generate ${1}.prof.bc -o ${1}.prof
+clang -fprofile-instr-generate ${1}.prof.bc -o ${1}.prof
 # Collect profiling data
 ./${1}.prof ${INPUT}
 # Translate raw profiling data into LLVM data format

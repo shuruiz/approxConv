@@ -2,25 +2,40 @@
 // conv2d.cpp
 // 583project
 #include <stdio.h>
-#include <vector>
-#include <iostream>
-#include <sstream>
-#include <string>
 
-void conv2d(std::vector<std::vector<double>> const &in, 
-		std::vector<std::vector<double>> const &k, 
-		std::vector<std::vector<double>> &out){
-    for(int ih=0; ih<(in.size()-k.size()+1); ih++) {
-        for(int iw=0; iw<(in[0].size()-k[0].size()+1); iw++) {
-            for(int jh=0; jh<k.size(); jh++){
-                for(int jw=0; jw<k[0].size(); jw++) {
-                    	out[ih][iw] += in[ih+jh][iw+jw] * k[jh][jw];	
-				}
-	    	}
+
+#define KH 5
+#define KW 5
+
+
+#define IH 1000
+#define IW 1000
+
+#define OH 9996
+#define OW 9996
+
+double kernel[KH*KW] = {0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0,
+			0, 0, 1, 0, 0,
+			0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0};
+double input[IH*IW];
+double output[OH*OW];
+
+void conv2d(double in[], int inh, int inw, 
+	    double k[], double out[]){
+    for(int ih=0; ih<(inh-KH+1); ih++) {
+        for(int iw=0; iw<(inw-KW+1); iw++) {
+            for(int jh=0; jh<KH; jh++){
+                for(int jw=0; jw<KW; jw++) {
+                    out[(ih*IW)+iw] += in[((ih+jh)*IW)+iw+jw] * k[(jh*KH)+jw];	
+		}
+	    }
         }
     }
 }
 
+/*
 void createMatrix(std::vector<double>& mat, std::istringstream mstream, int rows, int cols) {
 		if (!mat.empty()) std::err << "Must input empty mat\n";
 		
@@ -32,11 +47,12 @@ void createMatrix(std::vector<double>& mat, std::istringstream mstream, int rows
 			mat[i / rows][i % rows] = element;
 		}
 }
-
+*/
 // odd numbered matrix inputs are kernels and even numbers are
 // input matrices
 int main() {	
 	
+	/*
 	int krows, kcols;
     while ( std::cin >> krows >> kcols) {	
 		std::string kstring;
@@ -61,7 +77,10 @@ int main() {
 	    	}
 	    	fprintf(stdout, "\n");
 		}
-	}
+	}*/
+
+
+	conv2d(input, 500, 500, kernel, output);
 
     return 0;
 }
