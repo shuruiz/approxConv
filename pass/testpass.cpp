@@ -33,10 +33,13 @@ struct test: public FunctionPass {
 			float branch = 0;
 			for (BasicBlock::iterator i = bb->begin(), e = bb->end(); i != e; i++) { // iterate instructions
 				uint64_t count = bfi.getBlockProfileCount(block).getValue();
+			
 				DynOpCounts +=count;
+				errs()<<"get opcode\n";
 
 				int opcode = i->getOpcode();
-				if (opcode==13){
+				errs()<<opcode<<"\n";
+				if (opcode==14){
 				Value *va = i->getOperand(0);
 				Value *vb =i->getOperand(1);
 				errs() << "value"<<*va<<*vb;
@@ -49,14 +52,15 @@ struct test: public FunctionPass {
 				Constant * C = dyn_cast<Constant>(vb);
 				//ConstantInt* C = dyn_cast<ConstantInt>(va);
 				errs()<<"constant cast\n";
-    				if (ConstantFP *constfp_gv = llvm::dyn_cast<llvm::ConstantFP>(C)) {
-                            float gv_fpval = (constfp_gv->getValueAPF()).convertToFloat();
+    				ConstantFP *constfp_gv = llvm::dyn_cast<llvm::ConstantFP>(C);
+                            		errs()<<"if statement";
+					float gv_fpval = (constfp_gv->getValueAPF()).convertToFloat();
                            // Fvalue = constfp_gv;
                             errs() << gv_fpval; // Value retrieved here
                             // Collect Instruction to modify
 
 
-                        }	
+                        
 				//errs()<<"dump"<<va->dump();
 				}
 				if (opcode == 13 || opcode == 15 || opcode == 17 || opcode == 19 || opcode == 20 || opcode == 22 || (opcode<=30 && opcode>=25) || opcode==53 || opcode ==23 ){

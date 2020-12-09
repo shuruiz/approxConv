@@ -4,9 +4,10 @@ int main()
 {
 
   
-  int i=10,j=20;
-  FILE* myfile;
-  int c = i+j;
+  float i=10.0f;
+  float j=20.1f;
+ // FILE* myfile;
+  float c = i+j;
 //  printf("%s\n",c );
   return 1;
 }
