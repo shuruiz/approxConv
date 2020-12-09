@@ -18,21 +18,37 @@ fi
 }
 
 
+rm *.bc
+rm *.profraw
+rm *.prof*
+
 # Prepare input to run
 setup
 # Convert source code to bitcode (IR)
 # This approach has an issue with -O2, so we are going to stick with default optimization level (-O0)
 clang -emit-llvm -c ${BENCH} -o ${1}.bc
+
+# Canonicalize natural loops
+#clang -emit-llvm -c ${BENCH} -o - | sed s/optnone// | opt -analyze -mem2reg -loop-rotate -loops -indvars -instcombine -loop-simplify -loop-rotate -scalar-evolution
+
+opt -mem2reg -indvars -loop-simplify -scalar-evolution ${1}.bc -o ${1}.ls.bc
+#opt -analyze -mem2reg -indvars -instcombine -loop-simplify -loop-rotate -scalar-evolution < ${1}.bc
 # Instrument profiler
-opt -pgo-instr-gen -instrprof ${1}.bc -o ${1}.prof.bc
+opt -pgo-instr-gen -instrprof ${1}.ls.bc -o ${1}.ls.prof.bc
 # Generate binary executable with profiler embedded
-clang -fprofile-instr-generate ${1}.prof.bc -o ${1}.prof
+clang -fprofile-instr-generate ${1}.ls.prof.bc -o ${1}.prof
 # Collect profiling data
 ./${1}.prof ${INPUT}
 # Translate raw profiling data into LLVM data format
-llvm-profdata merge -output=pgo.profdata default.profraw
+llvm-profdata merge -output=${1}.profdata default.profraw
 
 # Prepare input to run
 setup
 # Apply your pass to bitcode (IR)
-opt -pgo-instr-use -pgo-test-profile-file=pgo.profdata -load ${PATH_MYPASS} ${NAME_MYPASS} < ${1}.bc > ${1}.ls.bc
+opt -pgo-instr-use -pgo-test-profile-file=${1}.profdata -load ${PATH_MYPASS} ${NAME_MYPASS} < ${1}.ls.bc > ${1}.convpass.bc
+
+
+
+../viz.sh ${1}.ls
+../viz.sh ${1}.convpass
+

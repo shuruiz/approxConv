@@ -11,12 +11,82 @@
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/CodeMetrics.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 
 #include <vector>
 #include <algorithm>
 
 using namespace llvm;
 
+
+
+
+
+bool computeFullUnrollCount(
+    Loop *L, const TargetTransformInfo &TTI, DominatorTree &DT, LoopInfo *LI,
+    ScalarEvolution &SE, const SmallPtrSetImpl<const Value *> &EphValues,
+    OptimizationRemarkEmitter *ORE, unsigned &TripCount, unsigned MaxTripCount,
+    bool MaxOrZero, unsigned &TripMultiple, unsigned LoopSize,
+    TargetTransformInfo::UnrollingPreferences &UP, bool &UseUpperBound,
+    unsigned UnrollMaxUpperBound) {
+  bool ExplicitUnroll = false;
+  // 3rd priority is full unroll count.
+  // Full unroll makes sense only when TripCount or its upper bound could be
+  // statically calculated.
+  // Also we need to check if we exceed FullUnrollMaxCount.
+  // If using the upper bound to unroll, TripMultiple should be set to 1 because
+  // we do not know when loop may exit.
+
+  // We can unroll by the upper bound amount if it's generally allowed or if
+  // we know that the loop is executed either the upper bound or zero times.
+  // (MaxOrZero unrolling keeps only the first loop test, so the number of
+  // loop tests remains the same compared to the non-unrolled version, whereas
+  // the generic upper bound unrolling keeps all but the last loop test so the
+  // number of loop tests goes up which may end up being worse on targets with
+  // constrained branch predictor resources so is controlled by an option.)
+  // In addition we only unroll small upper bounds.
+  unsigned FullUnrollMaxTripCount = MaxTripCount;
+  if (!(UP.UpperBound || MaxOrZero) ||
+      FullUnrollMaxTripCount > UnrollMaxUpperBound)
+    FullUnrollMaxTripCount = 0;
+  errs() << FullUnrollMaxTripCount << "fumtc\n";
+  // UnrollByMaxCount and ExactTripCount cannot both be non zero since we only
+  // compute the former when the latter is zero.
+  unsigned ExactTripCount = TripCount;
+  assert((ExactTripCount == 0 || FullUnrollMaxTripCount == 0) &&
+         "ExtractTripCount and UnrollByMaxCount cannot both be non zero.");
+  errs() << ExactTripCount << "etc\n";
+  unsigned FullUnrollTripCount =
+      ExactTripCount ? ExactTripCount : FullUnrollMaxTripCount;
+  UP.Count = FullUnrollTripCount;
+  if (FullUnrollTripCount && FullUnrollTripCount <= UP.FullUnrollMaxCount) {
+    // When computing the unrolled size, note that BEInsns are not replicated
+    // like the rest of the loop body.
+    //if (getUnrolledLoopSize(LoopSize, UP) < UP.Threshold) {
+    UseUpperBound = (FullUnrollMaxTripCount == FullUnrollTripCount);
+    TripCount = FullUnrollTripCount;
+    TripMultiple = UP.UpperBound ? 1 : TripMultiple;
+    return ExplicitUnroll;
+   /* } else {
+      // The loop isn't that small, but we still can fully unroll it if that
+      // helps to remove a significant number of instructions.
+      // To check that, run additional analysis on the loop.
+      if (Optional<EstimatedUnrollCost> Cost = analyzeLoopUnrollCost(
+              L, FullUnrollTripCount, DT, SE, EphValues, TTI,
+              UP.Threshold * UP.MaxPercentThresholdBoost / 100)) {
+        unsigned Boost =
+            getFullUnrollBoostingFactor(*Cost, UP.MaxPercentThresholdBoost);
+        if (Cost->UnrolledCost < UP.Threshold * Boost / 100) {
+          UseUpperBound = (FullUnrollMaxTripCount == FullUnrollTripCount);
+          TripCount = FullUnrollTripCount;
+          TripMultiple = UP.UpperBound ? 1 : TripMultiple;
+          return ExplicitUnroll;
+        }
+      }
+    }*/
+  }
+  return ExplicitUnroll;
+}
 
 static LoopUnrollResult tryToUnrollLoop(
     Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
@@ -28,7 +98,7 @@ static LoopUnrollResult tryToUnrollLoop(
     Optional<bool> ProvidedRuntime, Optional<bool> ProvidedUpperBound,
     Optional<bool> ProvidedAllowPeeling,
     Optional<bool> ProvidedAllowProfileBasedPeeling,
-    Optional<unsigned> ProvidedFullUnrollMaxCount) {
+    Optional<unsigned> ProvidedFullUnrollMaxCount, unsigned UnrollMaxUpperBound) {
   errs() << "Loop Unroll: F["
                     << L->getHeader()->getParent()->getName() << "] Loop %"
                     << L->getHeader()->getName() << "\n";
@@ -94,9 +164,12 @@ static LoopUnrollResult tryToUnrollLoop(
   if (!ExitingBlock || !L->isLoopExiting(ExitingBlock))
     ExitingBlock = L->getExitingBlock();
   if (ExitingBlock) {
+    errs() << "EB: " << ExitingBlock->getName() << "\n";
     TripCount = SE.getSmallConstantTripCount(L, ExitingBlock);
     TripMultiple = SE.getSmallConstantTripMultiple(L, ExitingBlock);
   }
+  TripCount = 5;
+  errs() << "TC: " << (int)TripCount << " EB:" << (bool)ExitingBlock << "\n";
 
   // If the loop contains a convergent operation, the prelude we'd add
   // to do the first few instructions before we hit the unrolled loop
@@ -125,9 +198,10 @@ static LoopUnrollResult tryToUnrollLoop(
   // computeUnrollCount() decides whether it is beneficial to use upper bound to
   // fully unroll the loop.
   bool UseUpperBound = false;
-  bool IsCountSetExplicitly = computeUnrollCount(
+  bool IsCountSetExplicitly = computeFullUnrollCount(
       L, TTI, DT, LI, SE, EphValues, &ORE, TripCount, MaxTripCount, MaxOrZero,
-      TripMultiple, LoopSize, UP, UseUpperBound);
+      TripMultiple, LoopSize, UP, UseUpperBound, UnrollMaxUpperBound);
+  errs() << "Made it here " << IsCountSetExplicitly << " " << UP.Count << "\n";
   if (!UP.Count)
     return LoopUnrollResult::Unmodified;
   // Unroll factor (Count) must be less or equal to TripCount.
@@ -136,7 +210,9 @@ static LoopUnrollResult tryToUnrollLoop(
 
   // Save loop properties before it is transformed.
   MDNode *OrigLoopID = L->getLoopID();
-
+  errs() << UP.Count << " " << TripCount << " " << UP.Force << " " <<  UP.Runtime << " " << UP.AllowExpensiveTripCount << " "
+       << UseUpperBound << " " << MaxOrZero << " " << TripMultiple << " " << UP.PeelCount << " " << UP.UnrollRemainder << " "
+       << ForgetAllSCEV << "\n";
   // Unroll the loop.
   Loop *RemainderLoop = nullptr;
   LoopUnrollResult UnrollResult = UnrollLoop(
@@ -187,6 +263,7 @@ struct ConvPass : public FunctionPass {
   static char ID;
   ConvPass() : FunctionPass(ID) {}
 
+  unsigned UnrollMaxUpperBound = 10;
   Optional<unsigned> ProvidedCount;
   Optional<unsigned> ProvidedThreshold;
   Optional<bool> ProvidedAllowPartial;
@@ -248,13 +325,26 @@ struct ConvPass : public FunctionPass {
     if(convLoops.size()%2==1){
         return false;
     }
+    
+    // Reverse the list of loops to ensure unfold starts at innermost nest
+    std::reverse(std::begin(convLoops), std::end(convLoops));
+    
+    errs() << "Found a total of " << convLoops.size() << " nested loops" << "\n";
+    for(int i=0; i<convLoops.size(); i++) {
+        Loop *L = convLoops[i];
+        errs() << "Loop Stored: F["
+                    << L->getHeader()->getParent()->getName() << "] Loop %"
+                    << L->getHeader()->getName() << "\n";
+    }
 
     int OptLevel = 3;
     bool OnlyWhenForced = false;
     bool ForgetAllSCEV = false;
     for(int i=0; i<convLoops.size()/2; i++) {
+	Optional<unsigned> KernelCount(5+i);
 	Loop *L = convLoops[i];
-
+        
+	
 	Function &F = *L->getHeader()->getParent();
  
         auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
@@ -267,18 +357,67 @@ struct ConvPass : public FunctionPass {
         // but ORE cannot be preserved (see comment before the pass definition).
         OptimizationRemarkEmitter ORE(&F);
         bool PreserveLCSSA = true;
-
+        
+	/*
 	LoopUnrollResult Result = tryToUnrollLoop(
             L, DT, LI, SE, TTI, AC, ORE, nullptr, nullptr, PreserveLCSSA, OptLevel,
-            OnlyWhenForced, ForgetAllSCEV, ProvidedCount, ProvidedThreshold,
+            OnlyWhenForced, ForgetAllSCEV, KernelCount, ProvidedThreshold,
             ProvidedAllowPartial, ProvidedRuntime, ProvidedUpperBound,
             ProvidedAllowPeeling, ProvidedAllowProfileBasedPeeling,
-            ProvidedFullUnrollMaxCount);
+            ProvidedFullUnrollMaxCount, UnrollMaxUpperBound);
+        
+        */
+
+	unsigned count = 5;
+	unsigned tripCount = 5;
+	bool force = false;
+	bool allowRuntime = true;
+	bool allowExpensiveTripCount = false;
+	bool preserveCondBr = false;
+	bool preserveOnlyFirst = false;
+	unsigned tripMultiple = 1;
+	unsigned peelCount = 0;
+	bool unrollRemainder = false;
+	bool forgetAllSCEV = false;
+        MDNode *OrigLoopID = L->getLoopID();
+	//{UP.Count, TripCount, UP.Force, UP.Runtime, UP.AllowExpensiveTripCount,
+        // UseUpperBound, MaxOrZero, TripMultiple, UP.PeelCount, UP.UnrollRemainder,
+        // ForgetAllSCEV},
+	// Unroll the loop.
+        Loop *RemainderLoop = nullptr;
+        LoopUnrollResult UnrollResult = UnrollLoop(
+               L,
+	       {count, tripCount, force, allowRuntime, allowExpensiveTripCount,
+                preserveCondBr, preserveOnlyFirst, tripMultiple, peelCount, 
+		unrollRemainder, forgetAllSCEV},
+	       LI, &SE, &DT, &AC, &ORE, PreserveLCSSA, &RemainderLoop);
+        //if (UnrollResult == LoopUnrollResult::Unmodified)
+        //    return LoopUnrollResult::Unmodified;
+
+        if (RemainderLoop) {
+            Optional<MDNode *> RemainderLoopID =
+                  makeFollowupLoopID(OrigLoopID, {LLVMLoopUnrollFollowupAll,
+                                                  LLVMLoopUnrollFollowupRemainder});
+            if (RemainderLoopID.hasValue())
+                RemainderLoop->setLoopID(RemainderLoopID.getValue());
+        }
+
+        if (UnrollResult != LoopUnrollResult::FullyUnrolled) {
+            Optional<MDNode *> NewLoopID =
+                      makeFollowupLoopID(OrigLoopID, {LLVMLoopUnrollFollowupAll,
+                                                      LLVMLoopUnrollFollowupUnrolled});
+            if (NewLoopID.hasValue()) {
+                L->setLoopID(NewLoopID.getValue());
+
+            // Do not setLoopAlreadyUnrolled if loop attributes have been specified
+            // explicitly.
+            //return UnrollResult;
+            }
+	} 
+	errs() << "Tried loop " << i << " " << (int)UnrollResult << "\n";
     }
 
-    std::reverse(convLoops.begin(), convLoops.end());
 
-    errs() << convLoops.size();
     
     return false;
   }

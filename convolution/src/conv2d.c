@@ -19,21 +19,21 @@ double kernel[KH*KW] = {0, 0, 0, 0, 0,
 			0, 0, 1, 0, 0,
 			0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0};
-double input[IH*IW];
-double output[OH*OW];
-
+double input[IH*IW] = { 1 };
+double output[OH*OW] = { 0 };
+/*
 void conv2d(double in[], int inh, int inw, 
 	    double k[], double out[]){
     for(int ih=0; ih<(inh-KH+1); ih++) {
         for(int iw=0; iw<(inw-KW+1); iw++) {
-            for(int jh=0; jh<KH; jh++){
-                for(int jw=0; jw<KW; jw++) {
+            for(int jh=0; jh<5; jh++){
+                for(int jw=0; jw<5; jw++) {
                     out[(ih*IW)+iw] += in[((ih+jh)*IW)+iw+jw] * k[(jh*KH)+jw];	
 		}
 	    }
         }
     }
-}
+}*/
 
 /*
 void createMatrix(std::vector<double>& mat, std::istringstream mstream, int rows, int cols) {
@@ -80,8 +80,13 @@ int main() {
 	}*/
 
 
-	conv2d(input, 500, 500, kernel, output);
-
+	//conv2d(input, 500, 500, kernel, output);
+	for(int i=0; i<50; i++) {
+            for(int j=0; j<50; j++) {
+                fprintf(stdout, "%f ", output[(i*OW)+j]);
+            }
+            fprintf(stdout, "\n");
+        }
     return 0;
 }
 
