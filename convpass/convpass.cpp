@@ -142,8 +142,18 @@ struct ConvPass : public FunctionPass {
     for(int i=0; i<convLoops.size()/2; i++) {
 	Optional<unsigned> KernelCount(5+i);
 	Loop *L = convLoops[i];
-        
-	
+
+	/*
+        convLoops[i+1]->removeChildLoop(L);        
+	SmallVector<BasicBlock *, 8> ExitingBlocks;
+        L->getExitingBlocks(ExitingBlocks);
+        errs() << "exinf " << ExitingBlocks.size() << "\n";
+        for (int j=0; j<ExitingBlocks.size(); j++){
+            errs() << ExitingBlocks[j]->getName() << "\n";
+	}*/	
+        BasicBlock *Headerr = L->getHeader();
+        BranchInst *HeaderBI = dyn_cast<BranchInst>(Headerr->getTerminator());	
+        errs() << "inf " << Headerr->getName() << " " << (bool)HeaderBI->isUnconditional() << " " << (L->getExitingBlock() != Headerr) << " " << (bool)L->getExitingBlock() << "\n";	
 	Function &F = *L->getHeader()->getParent();
  
         auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
@@ -219,7 +229,8 @@ struct ConvPass : public FunctionPass {
 
 	errs() << "Tried loop " << i << " " << (int)UnrollResult << "\n";
         errs() << PreHeader->getName() << " " << PreHeader->getTerminator()->getNumSuccessors() << "\n";
-        
+        if(i>1)
+	       break;	
 	BasicBlock *nextBlock = PreHeader;
 	Instruction *lastInst = nextBlock->getTerminator();
         unsigned numSuc = lastInst->getNumSuccessors();
@@ -244,7 +255,7 @@ struct ConvPass : public FunctionPass {
 	errs() << "Merging from " << Header->getName() << "\n";
         mergeBlocksIntoPredecessors(*convLoops[i+1], DT, *LI, nullptr);	
 	//errs() << "loopsleft " << convLoopps.size() << "\n";
-	break;
+	
     }
 
 
