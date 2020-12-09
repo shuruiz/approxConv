@@ -14,14 +14,14 @@
 
  #include <stdio.h>
 // Global Constant value
-float[3][3] kernal=[[1.0,0,1.0],[0,1.0,0],[0,0,1.0]];
+float kernel[3][3]={{1.0,0,1.0},{0,1.0,0},{0,0,1.0}};
 
-float Multiply(){
-    float b=2.2f;
-    float c=4.32f;
-    float d= a*c;
-    return d;
-}
+// float Multiply(){
+//     float b=2.2f;
+//     float c=4.32f;
+//     float d= a*c;
+//     return d;
+// }
 
 
 // void conv2d(double in[], int inh, int inw, 
@@ -42,11 +42,11 @@ int main(int argc, char const *argv[])
 {
 
 
-    float[3][3] target=[[1.0,0,1.0],[0,1.0,0],[0,0,1.0]];
-	float[3][3] out=[[0,0,0],[0,0,0],[0,0,0]];
+    float target[3][3]={{1.0,0,1.0},{0,1.0,0},{0,0,1.0}};
+	float out[3][3]={{0,0,0},{0,0,0},{0,0,0}};
     for(int ih=0; ih<3; ih++) {
         for(int iw=0; iw<3; iw++) {
-            out[ih][iw] += kernel[ih][iw] *target[iw][ih];	
-    printf(out);      
+            out[ih][iw] += kernel[ih][iw] *target[iw][ih];	}}
+    // printf(out[1][1]);      
     return 0;
 }
