@@ -21,6 +21,7 @@ fi
 rm *.bc
 rm *.profraw
 rm *.prof*
+rm -r /dot
 
 # Prepare input to run
 setup
@@ -44,11 +45,13 @@ llvm-profdata merge -output=${1}.profdata default.profraw
 
 # Prepare input to run
 setup
+
+opt -verify < ${1}.ls.bc > ${1}.ls.verif.bc
 # Apply your pass to bitcode (IR)
 opt -pgo-instr-use -pgo-test-profile-file=${1}.profdata -load ${PATH_MYPASS} ${NAME_MYPASS} < ${1}.ls.bc > ${1}.convpass.bc
-
-
+opt -dce < ${1}.convpass.bc > ${1}.convpassopt.bc
+#opt -lint < ${1}.convpass.bc > ${1}.convpass.verify.bc
 
 ../viz.sh ${1}.ls
 ../viz.sh ${1}.convpass
-
+../viz.sh ${1}.convpassopt

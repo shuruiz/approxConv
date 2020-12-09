@@ -12,6 +12,9 @@
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/CodeMetrics.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/MemorySSAUpdater.h"
+#include "llvm/Analysis/DomTreeUpdater.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include <vector>
 #include <algorithm>
@@ -21,239 +24,35 @@ using namespace llvm;
 
 
 
+bool mergeBlocksIntoPredecessors(Loop &L, DominatorTree &DT,
+                                        LoopInfo &LI, MemorySSAUpdater *MSSAU) {
+  bool Changed = false;
+  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
+  // Copy blocks into a temporary array to avoid iterator invalidation issues
+  // as we remove them.
+  SmallVector<WeakTrackingVH, 16> Blocks(L.blocks());
 
-bool computeFullUnrollCount(
-    Loop *L, const TargetTransformInfo &TTI, DominatorTree &DT, LoopInfo *LI,
-    ScalarEvolution &SE, const SmallPtrSetImpl<const Value *> &EphValues,
-    OptimizationRemarkEmitter *ORE, unsigned &TripCount, unsigned MaxTripCount,
-    bool MaxOrZero, unsigned &TripMultiple, unsigned LoopSize,
-    TargetTransformInfo::UnrollingPreferences &UP, bool &UseUpperBound,
-    unsigned UnrollMaxUpperBound) {
-  bool ExplicitUnroll = false;
-  // 3rd priority is full unroll count.
-  // Full unroll makes sense only when TripCount or its upper bound could be
-  // statically calculated.
-  // Also we need to check if we exceed FullUnrollMaxCount.
-  // If using the upper bound to unroll, TripMultiple should be set to 1 because
-  // we do not know when loop may exit.
+  for (auto &Block : Blocks) {
+    // Attempt to merge blocks in the trivial case. Don't modify blocks which
+    // belong to other loops.
+    BasicBlock *Succ = cast_or_null<BasicBlock>(Block);
+    if (!Succ)
+      continue;
 
-  // We can unroll by the upper bound amount if it's generally allowed or if
-  // we know that the loop is executed either the upper bound or zero times.
-  // (MaxOrZero unrolling keeps only the first loop test, so the number of
-  // loop tests remains the same compared to the non-unrolled version, whereas
-  // the generic upper bound unrolling keeps all but the last loop test so the
-  // number of loop tests goes up which may end up being worse on targets with
-  // constrained branch predictor resources so is controlled by an option.)
-  // In addition we only unroll small upper bounds.
-  unsigned FullUnrollMaxTripCount = MaxTripCount;
-  if (!(UP.UpperBound || MaxOrZero) ||
-      FullUnrollMaxTripCount > UnrollMaxUpperBound)
-    FullUnrollMaxTripCount = 0;
-  errs() << FullUnrollMaxTripCount << "fumtc\n";
-  // UnrollByMaxCount and ExactTripCount cannot both be non zero since we only
-  // compute the former when the latter is zero.
-  unsigned ExactTripCount = TripCount;
-  assert((ExactTripCount == 0 || FullUnrollMaxTripCount == 0) &&
-         "ExtractTripCount and UnrollByMaxCount cannot both be non zero.");
-  errs() << ExactTripCount << "etc\n";
-  unsigned FullUnrollTripCount =
-      ExactTripCount ? ExactTripCount : FullUnrollMaxTripCount;
-  UP.Count = FullUnrollTripCount;
-  if (FullUnrollTripCount && FullUnrollTripCount <= UP.FullUnrollMaxCount) {
-    // When computing the unrolled size, note that BEInsns are not replicated
-    // like the rest of the loop body.
-    //if (getUnrolledLoopSize(LoopSize, UP) < UP.Threshold) {
-    UseUpperBound = (FullUnrollMaxTripCount == FullUnrollTripCount);
-    TripCount = FullUnrollTripCount;
-    TripMultiple = UP.UpperBound ? 1 : TripMultiple;
-    return ExplicitUnroll;
-   /* } else {
-      // The loop isn't that small, but we still can fully unroll it if that
-      // helps to remove a significant number of instructions.
-      // To check that, run additional analysis on the loop.
-      if (Optional<EstimatedUnrollCost> Cost = analyzeLoopUnrollCost(
-              L, FullUnrollTripCount, DT, SE, EphValues, TTI,
-              UP.Threshold * UP.MaxPercentThresholdBoost / 100)) {
-        unsigned Boost =
-            getFullUnrollBoostingFactor(*Cost, UP.MaxPercentThresholdBoost);
-        if (Cost->UnrolledCost < UP.Threshold * Boost / 100) {
-          UseUpperBound = (FullUnrollMaxTripCount == FullUnrollTripCount);
-          TripCount = FullUnrollTripCount;
-          TripMultiple = UP.UpperBound ? 1 : TripMultiple;
-          return ExplicitUnroll;
-        }
-      }
-    }*/
-  }
-  return ExplicitUnroll;
-}
+    BasicBlock *Pred = Succ->getSinglePredecessor();
+    if (!Pred || !Pred->getSingleSuccessor() || LI.getLoopFor(Pred) != &L)
+      continue;
 
-static LoopUnrollResult tryToUnrollLoop(
-    Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
-    const TargetTransformInfo &TTI, AssumptionCache &AC,
-    OptimizationRemarkEmitter &ORE, BlockFrequencyInfo *BFI,
-    ProfileSummaryInfo *PSI, bool PreserveLCSSA, int OptLevel,
-    bool OnlyWhenForced, bool ForgetAllSCEV, Optional<unsigned> ProvidedCount,
-    Optional<unsigned> ProvidedThreshold, Optional<bool> ProvidedAllowPartial,
-    Optional<bool> ProvidedRuntime, Optional<bool> ProvidedUpperBound,
-    Optional<bool> ProvidedAllowPeeling,
-    Optional<bool> ProvidedAllowProfileBasedPeeling,
-    Optional<unsigned> ProvidedFullUnrollMaxCount, unsigned UnrollMaxUpperBound) {
-  errs() << "Loop Unroll: F["
-                    << L->getHeader()->getParent()->getName() << "] Loop %"
-                    << L->getHeader()->getName() << "\n";
-  TransformationMode TM = hasUnrollTransformation(L);
-  if (TM & TM_Disable)
-    return LoopUnrollResult::Unmodified;
-  if (!L->isLoopSimplifyForm()) {
-    errs() << "  Not unrolling loop which is not in loop-simplify form.\n";
-    return LoopUnrollResult::Unmodified;
+    // Merge Succ into Pred and delete it.
+    MergeBlockIntoPredecessor(Succ, &DTU, &LI, MSSAU);
+
+    if (MSSAU && VerifyMemorySSA)
+      MSSAU->getMemorySSA()->verifyMemorySSA();
+
+    Changed = true;
   }
 
-  // When automtatic unrolling is disabled, do not unroll unless overridden for
-  // this loop.
-  if (OnlyWhenForced && !(TM & TM_Enable))
-    return LoopUnrollResult::Unmodified;
-
-  bool OptForSize = L->getHeader()->getParent()->hasOptSize();
-  unsigned NumInlineCandidates;
-  bool NotDuplicatable;
-  bool Convergent;
-  TargetTransformInfo::UnrollingPreferences UP = gatherUnrollingPreferences(
-      L, SE, TTI, BFI, PSI, OptLevel, ProvidedThreshold, ProvidedCount,
-      ProvidedAllowPartial, ProvidedRuntime, ProvidedUpperBound,
-      ProvidedAllowPeeling, ProvidedAllowProfileBasedPeeling,
-      ProvidedFullUnrollMaxCount);
-
-  // Exit early if unrolling is disabled. For OptForSize, we pick the loop size
-  // as threshold later on.
-  if (UP.Threshold == 0 && (!UP.Partial || UP.PartialThreshold == 0) &&
-      !OptForSize)
-    return LoopUnrollResult::Unmodified;
-
-  SmallPtrSet<const Value *, 32> EphValues;
-  CodeMetrics::collectEphemeralValues(L, &AC, EphValues);
-
-  unsigned LoopSize =
-      ApproximateLoopSize(L, NumInlineCandidates, NotDuplicatable, Convergent,
-                          TTI, EphValues, UP.BEInsns);
-  errs() << "  Loop Size = " << LoopSize << "\n";
-  if (NotDuplicatable) {
-    errs() << "  Not unrolling loop which contains non-duplicatable"
-                      << " instructions.\n";
-    return LoopUnrollResult::Unmodified;
-  }
-
-  // When optimizing for size, use LoopSize + 1 as threshold (we use < Threshold
-  // later), to (fully) unroll loops, if it does not increase code size.
-  if (OptForSize)
-    UP.Threshold = std::max(UP.Threshold, LoopSize + 1);
-
-  if (NumInlineCandidates != 0) {
-    errs() << "  Not unrolling loop with inlinable calls.\n";
-    return LoopUnrollResult::Unmodified;
-  }
-
-  // Find trip count and trip multiple if count is not available
-  unsigned TripCount = 0;
-  unsigned TripMultiple = 1;
-  // If there are multiple exiting blocks but one of them is the latch, use the
-  // latch for the trip count estimation. Otherwise insist on a single exiting
-  // block for the trip count estimation.
-  BasicBlock *ExitingBlock = L->getLoopLatch();
-  if (!ExitingBlock || !L->isLoopExiting(ExitingBlock))
-    ExitingBlock = L->getExitingBlock();
-  if (ExitingBlock) {
-    errs() << "EB: " << ExitingBlock->getName() << "\n";
-    TripCount = SE.getSmallConstantTripCount(L, ExitingBlock);
-    TripMultiple = SE.getSmallConstantTripMultiple(L, ExitingBlock);
-  }
-  TripCount = 5;
-  errs() << "TC: " << (int)TripCount << " EB:" << (bool)ExitingBlock << "\n";
-
-  // If the loop contains a convergent operation, the prelude we'd add
-  // to do the first few instructions before we hit the unrolled loop
-  // is unsafe -- it adds a control-flow dependency to the convergent
-  // operation.  Therefore restrict remainder loop (try unrollig without).
-  //
-  // TODO: This is quite conservative.  In practice, convergent_op()
-  // is likely to be called unconditionally in the loop.  In this
-  // case, the program would be ill-formed (on most architectures)
-  // unless n were the same on all threads in a thread group.
-  // Assuming n is the same on all threads, any kind of unrolling is
-  // safe.  But currently llvm's notion of convergence isn't powerful
-  // enough to express this.
-  if (Convergent)
-    UP.AllowRemainder = false;
-
-  // Try to find the trip count upper bound if we cannot find the exact trip
-  // count.
-  unsigned MaxTripCount = 0;
-  bool MaxOrZero = false;
-  if (!TripCount) {
-    MaxTripCount = SE.getSmallConstantMaxTripCount(L);
-    MaxOrZero = SE.isBackedgeTakenCountMaxOrZero(L);
-  }
-
-  // computeUnrollCount() decides whether it is beneficial to use upper bound to
-  // fully unroll the loop.
-  bool UseUpperBound = false;
-  bool IsCountSetExplicitly = computeFullUnrollCount(
-      L, TTI, DT, LI, SE, EphValues, &ORE, TripCount, MaxTripCount, MaxOrZero,
-      TripMultiple, LoopSize, UP, UseUpperBound, UnrollMaxUpperBound);
-  errs() << "Made it here " << IsCountSetExplicitly << " " << UP.Count << "\n";
-  if (!UP.Count)
-    return LoopUnrollResult::Unmodified;
-  // Unroll factor (Count) must be less or equal to TripCount.
-  if (TripCount && UP.Count > TripCount)
-    UP.Count = TripCount;
-
-  // Save loop properties before it is transformed.
-  MDNode *OrigLoopID = L->getLoopID();
-  errs() << UP.Count << " " << TripCount << " " << UP.Force << " " <<  UP.Runtime << " " << UP.AllowExpensiveTripCount << " "
-       << UseUpperBound << " " << MaxOrZero << " " << TripMultiple << " " << UP.PeelCount << " " << UP.UnrollRemainder << " "
-       << ForgetAllSCEV << "\n";
-  // Unroll the loop.
-  Loop *RemainderLoop = nullptr;
-  LoopUnrollResult UnrollResult = UnrollLoop(
-      L,
-      {UP.Count, TripCount, UP.Force, UP.Runtime, UP.AllowExpensiveTripCount,
-       UseUpperBound, MaxOrZero, TripMultiple, UP.PeelCount, UP.UnrollRemainder,
-       ForgetAllSCEV},
-      LI, &SE, &DT, &AC, &ORE, PreserveLCSSA, &RemainderLoop);
-  if (UnrollResult == LoopUnrollResult::Unmodified)
-    return LoopUnrollResult::Unmodified;
-
-  if (RemainderLoop) {
-    Optional<MDNode *> RemainderLoopID =
-        makeFollowupLoopID(OrigLoopID, {LLVMLoopUnrollFollowupAll,
-                                        LLVMLoopUnrollFollowupRemainder});
-    if (RemainderLoopID.hasValue())
-      RemainderLoop->setLoopID(RemainderLoopID.getValue());
-  }
-
-  if (UnrollResult != LoopUnrollResult::FullyUnrolled) {
-    Optional<MDNode *> NewLoopID =
-        makeFollowupLoopID(OrigLoopID, {LLVMLoopUnrollFollowupAll,
-                                        LLVMLoopUnrollFollowupUnrolled});
-    if (NewLoopID.hasValue()) {
-      L->setLoopID(NewLoopID.getValue());
-
-      // Do not setLoopAlreadyUnrolled if loop attributes have been specified
-      // explicitly.
-      return UnrollResult;
-    }
-  }
-
-  // If loop has an unroll count pragma or unrolled by explicitly set count
-  // mark loop as unrolled to prevent unrolling beyond that requested.
-  // If the loop was peeled, we already "used up" the profile information
-  // we had, so we don't want to unroll or peel again.
-  if (UnrollResult != LoopUnrollResult::FullyUnrolled &&
-      (IsCountSetExplicitly || (UP.PeelProfiledIterations && UP.PeelCount)))
-    L->setLoopAlreadyUnrolled();
-
-  return UnrollResult;
+  return Changed;
 }
 
 
@@ -368,7 +167,7 @@ struct ConvPass : public FunctionPass {
         
         */
         BasicBlock *PreHeader = L->getLoopPreheader();
-
+        BasicBlock *Header = L->getHeader();
 	unsigned count = 5;
 	unsigned tripCount = 5;
 	bool force = false;
@@ -441,7 +240,11 @@ struct ConvPass : public FunctionPass {
         Instruction *unreachInst = finalUnroll->getTerminator();	
       	unreachInst->eraseFromParent();
 	BranchInst *uncondBrLatch = BranchInst::Create(exitLatch, finalUnroll);
-       break; 
+        
+	errs() << "Merging from " << Header->getName() << "\n";
+        mergeBlocksIntoPredecessors(*convLoops[i+1], DT, *LI, nullptr);	
+	//errs() << "loopsleft " << convLoopps.size() << "\n";
+	break;
     }
 
 
