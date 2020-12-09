@@ -367,6 +367,7 @@ struct ConvPass : public FunctionPass {
             ProvidedFullUnrollMaxCount, UnrollMaxUpperBound);
         
         */
+        BasicBlock *PreHeader = L->getLoopPreheader();
 
 	unsigned count = 5;
 	unsigned tripCount = 5;
@@ -380,7 +381,9 @@ struct ConvPass : public FunctionPass {
 	bool unrollRemainder = false;
 	bool forgetAllSCEV = false;
         MDNode *OrigLoopID = L->getLoopID();
+	errs() << L->getNumBlocks() << "\n";
 	//{UP.Count, TripCount, UP.Force, UP.Runtime, UP.AllowExpensiveTripCount,
+	//
         // UseUpperBound, MaxOrZero, TripMultiple, UP.PeelCount, UP.UnrollRemainder,
         // ForgetAllSCEV},
 	// Unroll the loop.
@@ -414,7 +417,31 @@ struct ConvPass : public FunctionPass {
             //return UnrollResult;
             }
 	} 
+
 	errs() << "Tried loop " << i << " " << (int)UnrollResult << "\n";
+        errs() << PreHeader->getName() << " " << PreHeader->getTerminator()->getNumSuccessors() << "\n";
+        
+	BasicBlock *nextBlock = PreHeader;
+	Instruction *lastInst = nextBlock->getTerminator();
+        unsigned numSuc = lastInst->getNumSuccessors();
+        while(numSuc==1) {
+            nextBlock = lastInst->getSuccessor(0);
+	    errs() << nextBlock->getName() << "\n";
+	    lastInst = nextBlock->getTerminator();
+            numSuc = lastInst->getNumSuccessors();
+	}
+	assert(numSuc==2);
+	BasicBlock *finalUnroll = lastInst->getSuccessor(0);
+	BasicBlock *exitLatch = lastInst->getSuccessor(1);
+        errs() << "Stopped at " << lastInst->getOpcodeName() << " " << finalUnroll->getName() << " " << exitLatch->getName() << "\n";
+        
+
+	lastInst->eraseFromParent();
+	BranchInst *uncondBrUnroll = BranchInst::Create(finalUnroll, nextBlock);
+        Instruction *unreachInst = finalUnroll->getTerminator();	
+      	unreachInst->eraseFromParent();
+	BranchInst *uncondBrLatch = BranchInst::Create(exitLatch, finalUnroll);
+       break; 
     }
 
 
