@@ -5,3 +5,4 @@ include(AddLLVM)
 add_definitions(${LLVM_DEFINITIONS})                      # You don't need to change ${LLVM_DEFINITIONS} since it is already defined.
 include_directories(${LLVM_INCLUDE_DIRS})                 # You don't need to change ${LLVM_INCLUDE_DIRS} since it is already defined.
 add_subdirectory(convpass)                                  # Add the directory which your pass lives.
+add_subdirectory(constanttest)
