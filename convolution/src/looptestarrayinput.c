@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 
-
 double array[5][5] ={{  1,   1, 0.1, 0.1,   1},
 				{0.1,   1, 0.1, 0.1,    1},
 				{0.1,   1, 0.1, 0.1, 0.01},
@@ -15,10 +14,12 @@ void testloops() {
         for (int j=0; j<100; j++) {
           for(int k=0; k<5; k++){
             for(int l=0; l<5; l++){
-              tot+=array[k][l];
+			  int z = 0;
+              scanf("%d", %i);
+			  tot+= z*array[k][l];
+	        }
+	      }
 	    }
-	  }
-	}
     }
     fprintf(stdout, "%d\n", tot);
 }
