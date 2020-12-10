@@ -4,7 +4,7 @@
 
 int main() {
 	
-	const int array[] = { 0, 1, 1, 3, 0, 5 };
+	const int array[] = { 0.1, 1, 1, 3, 0.1, 5 };
 	
 	int temp = 0;
 	for (int i = 0; i < 6; ++i) {
