@@ -14,9 +14,9 @@ void testloops() {
         for (int j=0; j<100; j++) {
           for(int k=0; k<5; k++){
             for(int l=0; l<5; l++){
-			  int z = 0;
-              scanf("%d", %i);
-			  tot+= z*array[k][l];
+			  int z;
+              scanf("%d", &i);
+			  tot+= (double)z * array[k][l];
 	        }
 	      }
 	    }
