@@ -38,8 +38,11 @@ bool mergeBlocksIntoPredecessors(Loop &L, DominatorTree &DT,
     BasicBlock *Succ = cast_or_null<BasicBlock>(Block);
     if (!Succ)
       continue;
-
+    errs() << Succ->getName() << "\n";
     BasicBlock *Pred = Succ->getSinglePredecessor();
+    if (!Pred)
+	continue;
+    errs() << Succ->getName() << " " << Pred->getName() << " " << LI.getLoopFor(Succ)->getLoopPreheader()->getName() << " " << LI.getLoopFor(Pred)->getLoopPreheader()->getName() << "\n";
     if (!Pred || !Pred->getSingleSuccessor() || LI.getLoopFor(Pred) != &L)
       continue;
 
@@ -141,16 +144,32 @@ struct ConvPass : public FunctionPass {
     bool ForgetAllSCEV = false;
     for(int i=0; i<convLoops.size()/2; i++) {
 	Optional<unsigned> KernelCount(5+i);
+	
+	Loop *LL = convLoops[i+1];
+
+        errs() << "Print loop blocks\n";
+        SmallVector<WeakTrackingVH, 16> Blockss(LL->blocks());
+        for (int j=0; j<Blockss.size(); j++){
+            errs() << Blockss[j]->getName() << "\n";
+        }
+        errs() <<"end print\n";
+	
 	Loop *L = convLoops[i];
 
-	/*
-        convLoops[i+1]->removeChildLoop(L);        
+        errs() << "Print loop blocks\n";
+	SmallVector<WeakTrackingVH, 16> Blocks(L->blocks());
+        for (int j=0; j<Blocks.size(); j++){
+            errs() << Blocks[j]->getName() << "\n";
+        }
+	errs() <<"end print\n";
+	
+        //convLoops[i+1]->removeChildLoop(L);        
 	SmallVector<BasicBlock *, 8> ExitingBlocks;
         L->getExitingBlocks(ExitingBlocks);
         errs() << "exinf " << ExitingBlocks.size() << "\n";
         for (int j=0; j<ExitingBlocks.size(); j++){
             errs() << ExitingBlocks[j]->getName() << "\n";
-	}*/	
+	}	
         BasicBlock *Headerr = L->getHeader();
         BranchInst *HeaderBI = dyn_cast<BranchInst>(Headerr->getTerminator());	
         errs() << "inf " << Headerr->getName() << " " << (bool)HeaderBI->isUnconditional() << " " << (L->getExitingBlock() != Headerr) << " " << (bool)L->getExitingBlock() << "\n";	
@@ -203,8 +222,8 @@ struct ConvPass : public FunctionPass {
                 preserveCondBr, preserveOnlyFirst, tripMultiple, peelCount, 
 		unrollRemainder, forgetAllSCEV},
 	       LI, &SE, &DT, &AC, &ORE, PreserveLCSSA, &RemainderLoop);
-        //if (UnrollResult == LoopUnrollResult::Unmodified)
-        //    return LoopUnrollResult::Unmodified;
+        if (UnrollResult == LoopUnrollResult::Unmodified)
+            break; //return LoopUnrollResult::Unmodified;
 
         if (RemainderLoop) {
             Optional<MDNode *> RemainderLoopID =
@@ -248,14 +267,23 @@ struct ConvPass : public FunctionPass {
 
 	lastInst->eraseFromParent();
 	BranchInst *uncondBrUnroll = BranchInst::Create(finalUnroll, nextBlock);
-        Instruction *unreachInst = finalUnroll->getTerminator();	
+        convLoops[i+1]->addBasicBlockToLoop(finalUnroll, *LI);
+	finalUnroll = finalUnroll->getTerminator()->getSuccessor(0);
+	convLoops[i+1]->addBasicBlockToLoop(finalUnroll, *LI);
+	Instruction *unreachInst = finalUnroll->getTerminator();	
       	unreachInst->eraseFromParent();
+
 	BranchInst *uncondBrLatch = BranchInst::Create(exitLatch, finalUnroll);
-        
+        errs() << "Print loop blocks\n";
+        SmallVector<WeakTrackingVH, 16> Blocksss(LL->blocks());
+        for (int j=0; j<Blocksss.size(); j++){
+            errs() << Blocksss[j]->getName() << "\n";
+        }
+        errs() <<"end print\n"; 
 	errs() << "Merging from " << Header->getName() << "\n";
         mergeBlocksIntoPredecessors(*convLoops[i+1], DT, *LI, nullptr);	
 	//errs() << "loopsleft " << convLoopps.size() << "\n";
-	
+        	
     }
 
 
