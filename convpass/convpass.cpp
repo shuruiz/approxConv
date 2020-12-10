@@ -145,31 +145,9 @@ struct ConvPass : public FunctionPass {
     for(int i=0; i<convLoops.size()/2; i++) {
 	Optional<unsigned> KernelCount(5+i);
 	
-	Loop *LL = convLoops[i+1];
-
-        errs() << "Print loop blocks\n";
-        SmallVector<WeakTrackingVH, 16> Blockss(LL->blocks());
-        for (int j=0; j<Blockss.size(); j++){
-            errs() << Blockss[j]->getName() << "\n";
-        }
-        errs() <<"end print\n";
 	
 	Loop *L = convLoops[i];
 
-        errs() << "Print loop blocks\n";
-	SmallVector<WeakTrackingVH, 16> Blocks(L->blocks());
-        for (int j=0; j<Blocks.size(); j++){
-            errs() << Blocks[j]->getName() << "\n";
-        }
-	errs() <<"end print\n";
-	
-        //convLoops[i+1]->removeChildLoop(L);        
-	SmallVector<BasicBlock *, 8> ExitingBlocks;
-        L->getExitingBlocks(ExitingBlocks);
-        errs() << "exinf " << ExitingBlocks.size() << "\n";
-        for (int j=0; j<ExitingBlocks.size(); j++){
-            errs() << ExitingBlocks[j]->getName() << "\n";
-	}	
         BasicBlock *Headerr = L->getHeader();
         BranchInst *HeaderBI = dyn_cast<BranchInst>(Headerr->getTerminator());	
         errs() << "inf " << Headerr->getName() << " " << (bool)HeaderBI->isUnconditional() << " " << (L->getExitingBlock() != Headerr) << " " << (bool)L->getExitingBlock() << "\n";	
@@ -248,14 +226,11 @@ struct ConvPass : public FunctionPass {
 
 	errs() << "Tried loop " << i << " " << (int)UnrollResult << "\n";
         errs() << PreHeader->getName() << " " << PreHeader->getTerminator()->getNumSuccessors() << "\n";
-        if(i>1)
-	       break;	
 	BasicBlock *nextBlock = PreHeader;
 	Instruction *lastInst = nextBlock->getTerminator();
         unsigned numSuc = lastInst->getNumSuccessors();
         while(numSuc==1) {
             nextBlock = lastInst->getSuccessor(0);
-	    errs() << nextBlock->getName() << "\n";
 	    lastInst = nextBlock->getTerminator();
             numSuc = lastInst->getNumSuccessors();
 	}
@@ -267,19 +242,20 @@ struct ConvPass : public FunctionPass {
 
 	lastInst->eraseFromParent();
 	BranchInst *uncondBrUnroll = BranchInst::Create(finalUnroll, nextBlock);
-        convLoops[i+1]->addBasicBlockToLoop(finalUnroll, *LI);
-	finalUnroll = finalUnroll->getTerminator()->getSuccessor(0);
-	convLoops[i+1]->addBasicBlockToLoop(finalUnroll, *LI);
-	Instruction *unreachInst = finalUnroll->getTerminator();	
-      	unreachInst->eraseFromParent();
+        bool done = false;
+	while(!done) {
+	    Instruction *unreachInst = finalUnroll->getTerminator();
+	    if(unreachInst->getOpcode()==7) {
+	      convLoops[i+1]->addBasicBlockToLoop(finalUnroll, *LI);
+	      unreachInst->eraseFromParent();
+              done = true;
+	      break;
+	    }
+	    convLoops[i+1]->addBasicBlockToLoop(finalUnroll, *LI);
+	    finalUnroll = finalUnroll->getTerminator()->getSuccessor(0);
+	}
 
 	BranchInst *uncondBrLatch = BranchInst::Create(exitLatch, finalUnroll);
-        errs() << "Print loop blocks\n";
-        SmallVector<WeakTrackingVH, 16> Blocksss(LL->blocks());
-        for (int j=0; j<Blocksss.size(); j++){
-            errs() << Blocksss[j]->getName() << "\n";
-        }
-        errs() <<"end print\n"; 
 	errs() << "Merging from " << Header->getName() << "\n";
         mergeBlocksIntoPredecessors(*convLoops[i+1], DT, *LI, nullptr);	
 	//errs() << "loopsleft " << convLoopps.size() << "\n";
