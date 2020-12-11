@@ -17,7 +17,6 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/ADT/APFloat.h"
-#include "llvm/Transforms/Utils/FunctionComparator.h"
 
 #include <vector>
 #include <algorithm>
@@ -74,23 +73,20 @@ struct ThreshPass : public FunctionPass {
 		for (auto &I : BB) {		
 			if (I.getOpcode() == Instruction::FMul) {
 				if (ConstantFP *CI = dyn_cast<ConstantFP>(I.getOperand(0))) {
-					if( CI->getValueAPF().compare( APFloat(threshold)) == APFloat::cmpLessThan) {
+					if((CI->getValueAPF()).convertToFloat() <= threshold/* CI->getValueAPF().compare( APFloat(threshold)) == APFloat::cmpLessThan*/) {
 						modified |= true;
-						removeAndFixInst(I, 1);
+						//removeAndFixInst(I, 1);
 					}
 				} else if (ConstantFP *CI = dyn_cast<ConstantFP>(I.getOperand(1))) {
-					if( CI->getValueAPF().compare( APFloat(threshold) ==  APFloat::cmpLessThan) {
+					if( (CI->getValueAPF()).convertToFloat() <= threshold /*CI->getValueAPF().compare( APFloat(threshold)) ==  APFloat::cmpLessThan*/) {
 						modified |= true;
-						removeAndFixInstr(I,0);
+						//removeAndFixInst(I,0);
 					}
 				}
 			}
 		}
 	}
 	
-
-
-    
     return modified;
   }
 }; // end of struct ConvPass
@@ -99,5 +95,5 @@ struct ThreshPass : public FunctionPass {
 char ThreshPass::ID = 0;
 static RegisterPass<ThreshPass> X("threshpass", "Thresholding Pass",
                              false /* Only looks at CFG */,
-                             false /* Analysis Pass */)
+                             false /* Analysis Pass */);
 
