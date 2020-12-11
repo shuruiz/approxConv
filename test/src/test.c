@@ -46,10 +46,11 @@ int main(int argc, char const *argv[])
     float target[3]={1.0,0,1.0};
 	float out[3]={0,0,0};
 	float sum=0.0f;
-    for(int ih=0; ih<3; ih++) {
-		printf("%d \n",ih);
-		sum +=a;
-            out[ih]+= kernel[ih] *target[ih];	}
+  //   for(int ih=0; ih<3; ih++) {
+		// printf("%d \n",ih);
+	sum +=a;
+    out[ih] = kernel[0] *target[0] + kernel[1] *target[1] +kernel[2] *target[2] 
+// }
     // printf(out[1][1]);      
     return 0;
 }
