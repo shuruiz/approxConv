@@ -1,0 +1,8 @@
+#!/bin/sh
+
+ROWS=5
+COLS=5
+
+for i in {1..$ROWS};
+	do for i in {1..$COLS};
+		do sed s/@$ROWS$COLS/5 

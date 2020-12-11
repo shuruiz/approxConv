@@ -70,7 +70,7 @@ struct ThreshPass : public FunctionPass {
 	I.eraseFromParent();
   }
 
-  float threshold = 10;
+  float threshold = 11;
   bool runOnFunction(Function &F) override {
     //BranchProbabilityInfo &bpi = getAnalysis<BranchProbabilityInfoWrapperPass>().getBPI(); 
     //BlockFrequencyInfo &bfi = getAnalysis<BlockFrequencyInfoWrapperPass>().getBFI();
@@ -81,16 +81,22 @@ struct ThreshPass : public FunctionPass {
 		for (auto instItr = BB.begin(); instItr != BB.end();) {
 			Instruction &I = *instItr;
 			++instItr;
-
+			
+			errs() << "Inst\n";
 			if (I.getOpcode() == Instruction::FMul) {
+				errs() << "FMUL found\n";
 				if (ConstantFP *CI = dyn_cast<ConstantFP>(I.getOperand(0))) {
+					errs() << "Constant operand: " << CI->getValueAPF().convertToFloat() << "\n";
 					if((CI->getValueAPF()).convertToFloat() <= threshold/* CI->getValueAPF().compare( APFloat(threshold)) == APFloat::cmpLessThan*/) {
+						errs() << "Lessthanthreshold\n";
 						modified |= true;
 						placeZeros(I, 1);
 						errs() << CI->getValueAPF().convertToFloat() << "\n";
 					}
 				} else if (ConstantFP *CI = dyn_cast<ConstantFP>(I.getOperand(1))) {
-					if( (CI->getValueAPF()).convertToFloat() <= threshold /*CI->getValueAPF().compare( APFloat(threshold)) ==  APFloat::cmpLessThan*/) {
+					errs() << "Constant operand: " << CI->getValueAPF().convertToFloat() << "\n";
+					if((CI->getValueAPF()).convertToFloat() <= threshold/* CI->getValueAPF().compare( APFloat(threshold)) == APFloat::cmpLessThan*/) {
+						errs() << "Lessthanthrehsold\n";
 						modified |= true;
 						placeZeros(I,0);
 						errs() << CI->getValueAPF().convertToFloat() << "\n";
