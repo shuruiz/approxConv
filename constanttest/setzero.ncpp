@@ -1,0 +1,55 @@
+#include "llvm/Pass.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Analysis/BlockFrequencyInfo.h"
+#include "llvm/Analysis/BranchProbabilityInfo.h"
+#include "llvm/Transforms/Scalar/SROA.h"
+
+#include "vector"
+
+using namespace llvm;
+
+namespace {
+
+// Identity Instruction Elimination
+// Pass that removes add instructions that add 0
+struct SetZeroPass: public FunctionPass {
+  static char ID;
+  SetZeroPass() : FunctionPass(ID) {}
+
+
+  // Specify the list of analysis passes that will be used inside your pass.
+  void getAnalysisUsage(AnalysisUsage &AU) const {
+    AU.addRequired<BlockFrequencyInfoWrapperPass>(); // Analysis pass to load block execution count
+    AU.addRequired<BranchProbabilityInfoWrapperPass>(); // Analysis pass to load branch probability
+  }
+
+  void SetSparseValuesToZero() {
+
+
+
+
+  }
+
+
+  bool runOnFunction(Function &F) override {
+    BranchProbabilityInfo &bpi = getAnalysis<BranchProbabilityInfoWrapperPass>().getBPI(); 
+    BlockFrequencyInfo &bfi = getAnalysis<BlockFrequencyInfoWrapperPass>().getBFI();
+	
+	bool modified = false;
+   
+
+
+
+    return modified;
+  }
+}; // end of struct SetZeroPass 
+}  // end of anonymous namespace
+
+char SetZeroPass::ID = 0;
+static RegisterPass<SetZeroPass> X("szpass", "Sets all sparse elements to zero",
+                             false /* Only looks at CFG */,
+                             false /* Analysis Pass */);
+
