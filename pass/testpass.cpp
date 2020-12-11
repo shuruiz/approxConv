@@ -201,15 +201,15 @@ namespace {
 
                                     WorkListLoad->push_back(loadInst);
                                     for (auto user_of_load:loadInst->users()) {
-                                        user_of_load->dump();
+                                        //user_of_load->dump();
                                         Instruction *instruction1 = dyn_cast<Instruction>(user_of_load);
-                                        instruction1->dump();
-                                        //instruction1->setOperand(0, Fvalue);
                                         //instruction1->dump();
-                                        // if(Instruction *instruction1 = dyn_cast<Instruction>(user_of_load))
+                                        // //instruction1->setOperand(0, Fvalue);
+                                        // //instruction1->dump();
+                                        // // if(Instruction *instruction1 = dyn_cast<Instruction>(user_of_load))
                                         WorkListUserOfLoad->push_back(instruction1);
-                                        //instruction1->setOperand(0, Fvalue);
-                                        //instruction1->dump();
+                                        // //instruction1->setOperand(0, Fvalue);
+                                        // //instruction1->dump();
                                     }
 
                                 }
@@ -220,8 +220,9 @@ namespace {
                     // Modify Here
                         while (!WorkListUserOfLoad->empty()) {
                             Instruction *instruction = WorkListUserOfLoad->pop_back_val();
-                            instruction->setOperand(0, Fvalue);
-                            instruction->dump();
+                            instruction->replaceAllUsesWith(Fvalue);
+                            // instruction->setOperand(0, Fvalue);
+                            // instruction->dump();
                         }
 
                         // Removing all loads that are used by the global variable
@@ -234,12 +235,6 @@ namespace {
 
                     }
                 }
-
-
-
-
-
-
 
 
              return true;
