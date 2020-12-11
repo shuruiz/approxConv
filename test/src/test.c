@@ -15,6 +15,7 @@
  #include <stdio.h>
 // Global Constant value
 float kernel[3]={1.0,0,1.0};
+float a=1.4f;
 
 // float Multiply(){
 //     float b=2.2f;
@@ -44,8 +45,10 @@ int main(int argc, char const *argv[])
 
     float target[3]={1.0,0,1.0};
 	float out[3]={0,0,0};
+	float sum=0.0f;
     for(int ih=0; ih<3; ih++) {
 		printf("%d \n",ih);
+		sum +=a;
             out[ih]+= kernel[ih] *target[ih];	}
     // printf(out[1][1]);      
     return 0;

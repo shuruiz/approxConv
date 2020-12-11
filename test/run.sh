@@ -35,4 +35,4 @@ llvm-profdata merge -output=pgo.profdata default.profraw
 # Prepare input to run
 setup
 # Apply your pass to bitcode (IR)
-opt -pgo-instr-use -pgo-test-profile-file=pgo.profdata -load ${PATH_MYPASS} ${NAME_MYPASS} < ${1}.bc > /dev/null
+opt -pgo-instr-use  -sroa  -pgo-test-profile-file=pgo.profdata -load ${PATH_MYPASS} ${NAME_MYPASS} < ${1}.bc > /dev/null

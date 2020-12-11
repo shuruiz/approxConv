@@ -4,10 +4,8 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")        # You don't need to ch
 include(AddLLVM)
 add_definitions(${LLVM_DEFINITIONS})                      # You don't need to change ${LLVM_DEFINITIONS} since it is already defined.
 include_directories(${LLVM_INCLUDE_DIRS})                 # You don't need to change ${LLVM_INCLUDE_DIRS} since it is already defined.
-<<<<<<< HEAD
 #add_subdirectory(convpass)                                  # Add the directory which your pass lives.
-add_subdirectory(pass) 
-=======
-add_subdirectory(convpass)                                  # Add the directory which your pass lives.
-add_subdirectory(constanttest)
->>>>>>> a3105576611dcaf5210f10fe75d7b1eb2f5678eb
+add_subdirectory(pass)
+#add_subdirectory(convpass)                                  # Add the directory which your pass lives.
+#add_subdirectory(constanttest)
+
