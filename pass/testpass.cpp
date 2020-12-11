@@ -134,122 +134,213 @@
 // static RegisterPass<test> X("test", "dynamic opcodes counter",false, false);
 
 
+//////////////// getting float 
+
+// #include "llvm/Pass.h"
+// #include "llvm/IR/Function.h"
+// #include "llvm/Support/raw_ostream.h"
+// #include "llvm/IR/LegacyPassManager.h"
+// #include "llvm/IR/InstrTypes.h"
+// #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+// #include "llvm/IR/IRBuilder.h"
+// #include "llvm/IR/Module.h"
+// #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+// #include "llvm/DebugInfo/DWARF/DWARFDebugLine.h"
+// #include "llvm/IR/DebugLoc.h"
+// #include "llvm/IR/DebugInfo.h"
+// using namespace llvm;
+
+// /* StackOverflow : https://stackoverflow.com/questions/48212351/how-to-get-llvm-global-variable-constant-value* /
+// /**Bernard Nongpoh */
+
+// namespace {
+//     class test : public ModulePass {
+
+
+//     public:
+//         static char ID;
+
+
+//         test() : ModulePass(ID) {
+//             srand (time(NULL));
+//         }
+
+//         virtual bool runOnModule(Module &M) {
+
+//             // list to collect instruction
+//             /*
+//              * You cannot change an iterator while iterating over it
+//             • To remove instructions or modify, first collect the instructions to remove/modify
+//             •
+//              *
+//              * **/
+//             // This are the list of load to delete
+//             SmallVector<Instruction*,128> *WorkListLoad=new SmallVector<Instruction*,128>();
+//             // This is the list of instruction to modify the source operand
+//             SmallVector<Instruction*,128> *WorkListUserOfLoad=new SmallVector<Instruction*,128>();
+
+
+//             for (auto gv_iter = M.global_begin();gv_iter != M.global_end(); gv_iter++) {
+//                    /* GLOBAL DATA INFO*/
+//                     GlobalVariable *gv = &*gv_iter;
+//                     Constant *const_gv = gv->getInitializer();
+//                     ConstantFP *Fvalue;
+//                     if(!const_gv->isNullValue()) {
+
+//                         if (ConstantFP *constfp_gv = llvm::dyn_cast<llvm::ConstantFP>(const_gv)) {
+//                             float gv_fpval = (constfp_gv->getValueAPF()).convertToFloat();
+//                             Fvalue = constfp_gv;
+//                             errs() <<"float value"<< gv_fpval; // Value retrieved here
+//                             // Collect Instruction to modify
+
+
+//                         }
+
+//                         for (auto user_of_gv: gv->users()) {
+//                             // Collect in a worklist
+//                             if (llvm::Instruction *instr_ld_gv = llvm::dyn_cast<Instruction>(user_of_gv)) {
+
+//                                 if (LoadInst *loadInst = dyn_cast<LoadInst>(instr_ld_gv)) {
+
+//                                     WorkListLoad->push_back(loadInst);
+//                                     for (auto user_of_load:loadInst->users()) {
+//                                         user_of_load->dump();
+//                                         Instruction *instruction1 = dyn_cast<Instruction>(user_of_load);
+//                                         instruction1->dump();
+//                                         //instruction1->setOperand(0, Fvalue);
+//                                         //instruction1->dump();
+//                                         // if(Instruction *instruction1 = dyn_cast<Instruction>(user_of_load))
+//                                         WorkListUserOfLoad->push_back(instruction1);
+//                                         //instruction1->setOperand(0, Fvalue);
+//                                         //instruction1->dump();
+//                                     }
+
+//                                 }
+//                             }
+//                         }
+
+
+//                     // Modify Here
+//                         while (!WorkListUserOfLoad->empty()) {
+//                             Instruction *instruction = WorkListUserOfLoad->pop_back_val();
+//                             instruction->setOperand(0, Fvalue);
+//                             instruction->dump();
+//                         }
+
+//                         // Removing all loads that are used by the global variable
+//                         while (!WorkListLoad->empty()) {
+//                             Instruction *instruction = WorkListLoad->pop_back_val();
+//                             instruction->eraseFromParent();
+//                         }
+
+
+
+//                     }
+//                 }
+
+
+
+
+
+
+
+
+//              return true;
+//     }
+//   };
+// }
+
+// char test::ID = 0;
+
+
+// static RegisterPass<test> F0("test", "Constant Replacement Pass "
+//                                          , false,true);
+
+
+///// constant propagation 
+
+#define DEBUG_TYPE "constprop"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/IR/Constant.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/Pass.h"
-#include "llvm/IR/Function.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/InstrTypes.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/DebugInfo/DWARF/DWARFDebugLine.h"
-#include "llvm/IR/DebugLoc.h"
-#include "llvm/IR/DebugInfo.h"
+#include "llvm/Support/InstIterator.h"
+#include "llvm/Target/TargetLibraryInfo.h"
+#include <set>
 using namespace llvm;
 
-/* StackOverflow : https://stackoverflow.com/questions/48212351/how-to-get-llvm-global-variable-constant-value* /
-/**Bernard Nongpoh */
+STATISTIC(NumInstKilled, "Number of instructions killed");
 
 namespace {
-    class test : public ModulePass {
+  struct test : public FunctionPass {
+    static char ID; // Pass identification, replacement for typeid
+    test() : FunctionPass(ID) {
+      initializeConstantPropagationPass(*PassRegistry::getPassRegistry());
+    }
 
+    bool runOnFunction(Function &F);
 
-    public:
-        static char ID;
-
-
-        test() : ModulePass(ID) {
-            srand (time(NULL));
-        }
-
-        virtual bool runOnModule(Module &M) {
-
-            // list to collect instruction
-            /*
-             * You cannot change an iterator while iterating over it
-            • To remove instructions or modify, first collect the instructions to remove/modify
-            •
-             *
-             * **/
-            // This are the list of load to delete
-            SmallVector<Instruction*,128> *WorkListLoad=new SmallVector<Instruction*,128>();
-            // This is the list of instruction to modify the source operand
-            SmallVector<Instruction*,128> *WorkListUserOfLoad=new SmallVector<Instruction*,128>();
-
-
-            for (auto gv_iter = M.global_begin();gv_iter != M.global_end(); gv_iter++) {
-                   /* GLOBAL DATA INFO*/
-                    GlobalVariable *gv = &*gv_iter;
-                    Constant *const_gv = gv->getInitializer();
-                    ConstantFP *Fvalue;
-                    if(!const_gv->isNullValue()) {
-
-                        if (ConstantFP *constfp_gv = llvm::dyn_cast<llvm::ConstantFP>(const_gv)) {
-                            float gv_fpval = (constfp_gv->getValueAPF()).convertToFloat();
-                            Fvalue = constfp_gv;
-                            errs() <<"float value"<< gv_fpval; // Value retrieved here
-                            // Collect Instruction to modify
-
-
-                        }
-
-                        for (auto user_of_gv: gv->users()) {
-                            // Collect in a worklist
-                            if (llvm::Instruction *instr_ld_gv = llvm::dyn_cast<Instruction>(user_of_gv)) {
-
-                                if (LoadInst *loadInst = dyn_cast<LoadInst>(instr_ld_gv)) {
-
-                                    WorkListLoad->push_back(loadInst);
-                                    for (auto user_of_load:loadInst->users()) {
-                                        user_of_load->dump();
-                                        Instruction *instruction1 = dyn_cast<Instruction>(user_of_load);
-                                        instruction1->dump();
-                                        //instruction1->setOperand(0, Fvalue);
-                                        //instruction1->dump();
-                                        // if(Instruction *instruction1 = dyn_cast<Instruction>(user_of_load))
-                                        WorkListUserOfLoad->push_back(instruction1);
-                                        //instruction1->setOperand(0, Fvalue);
-                                        //instruction1->dump();
-                                    }
-
-                                }
-                            }
-                        }
-
-
-                    // Modify Here
-                        while (!WorkListUserOfLoad->empty()) {
-                            Instruction *instruction = WorkListUserOfLoad->pop_back_val();
-                            instruction->setOperand(0, Fvalue);
-                            instruction->dump();
-                        }
-
-                        // Removing all loads that are used by the global variable
-                        while (!WorkListLoad->empty()) {
-                            Instruction *instruction = WorkListLoad->pop_back_val();
-                            instruction->eraseFromParent();
-                        }
-
-
-
-                    }
-                }
-
-
-
-
-
-
-
-
-             return true;
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+      AU.setPreservesCFG();
+      AU.addRequired<TargetLibraryInfo>();
     }
   };
 }
 
-char test::ID = 0;
+char ConstantPropagation::ID = 0;
+INITIALIZE_PASS_BEGIN(test, "test",
+                "Simple constant propagation", false, false)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
+INITIALIZE_PASS_END(test, "test",
+                "Simple constant propagation", false, false)
 
+FunctionPass *llvm::createConstantPropagationPass() {
+  return new ConstantPropagation();
+}
 
-static RegisterPass<test> F0("test", "Constant Replacement Pass "
-                                         , false,true);
+bool ConstantPropagation::runOnFunction(Function &F) {
+  // Initialize the worklist to all of the instructions ready to process...
+  std::set<Instruction*> WorkList;
+  for(inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
+      WorkList.insert(&*i);
+  }
+  bool Changed = false;
+  DataLayout *TD = getAnalysisIfAvailable<DataLayout>();
+  TargetLibraryInfo *TLI = &getAnalysis<TargetLibraryInfo>();
+
+  while (!WorkList.empty()) {
+    Instruction *I = *WorkList.begin();
+    WorkList.erase(WorkList.begin());    // Get an element from the worklist...
+
+    if (!I->use_empty())                 // Don't muck with dead instructions...
+      if (Constant *C = ConstantFoldInstruction(I, TD, TLI)) {
+        // Add all of the users of this instruction to the worklist, they might
+        // be constant propagatable now...
+        if (ConstantFP *constfp_gv = llvm::dyn_cast<llvm::ConstantFP>(const_gv)) {
+                float gv_fpval = (constfp_gv->getValueAPF()).convertToFloat();
+                Fvalue = constfp_gv;
+                errs() <<"float value"<< gv_fpval; // Value retrieved here
+
+                }
+
+        for (Value::use_iterator UI = I->use_begin(), UE = I->use_end();
+             UI != UE; ++UI)
+          WorkList.insert(cast<Instruction>(*UI));
+
+        // Replace all of the uses of a variable with uses of the constant.
+        I->replaceAllUsesWith(C);
+
+        // Remove the dead instruction.
+        WorkList.erase(I);
+        I->eraseFromParent();
+
+        // We made a change to the function...
+        Changed = true;
+        ++NumInstKilled;
+      }
+  }
+  return Changed;
+}
