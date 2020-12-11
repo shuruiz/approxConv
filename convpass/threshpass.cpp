@@ -75,12 +75,14 @@ struct ThreshPass : public FunctionPass {
 				if (ConstantFP *CI = dyn_cast<ConstantFP>(I.getOperand(0))) {
 					if((CI->getValueAPF()).convertToFloat() <= threshold/* CI->getValueAPF().compare( APFloat(threshold)) == APFloat::cmpLessThan*/) {
 						modified |= true;
-						//removeAndFixInst(I, 1);
+						removeAndFixInst(I, 1);
+						errs() << CI->getValueAPF().convertToFloat() << "\n";
 					}
 				} else if (ConstantFP *CI = dyn_cast<ConstantFP>(I.getOperand(1))) {
 					if( (CI->getValueAPF()).convertToFloat() <= threshold /*CI->getValueAPF().compare( APFloat(threshold)) ==  APFloat::cmpLessThan*/) {
 						modified |= true;
-						//removeAndFixInst(I,0);
+						removeAndFixInst(I,0);
+						errs() << CI->getValueAPF().convertToFloat() << "\n";
 					}
 				}
 			}
