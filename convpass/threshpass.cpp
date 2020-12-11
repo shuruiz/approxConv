@@ -1,3 +1,4 @@
+
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
@@ -47,20 +48,27 @@ struct ThreshPass : public FunctionPass {
 
   // takes an instruction with a const operand, removes the instruction
   // and fixes the dependencies for the non-const operand
-  void removeAndFixInst( Instruction &I, int nonConstOperandIndex ) {
+  void placeZeros( Instruction &I, int nonConstOperandIndex ) {
   	Value* nonConstOperand = I.getOperand(nonConstOperandIndex);
 	
-	errs() << *nonConstOperand << "\n";
-	errs() << I << "\n";
 	// replace all uses of the removed instruction with the operands source
-	I.replaceAllUsesWith(nonConstOperand);
+	LLVMContext context;
+	Constant* zero = ConstantFP::get(I.getType(), 0);
+	
+    I.replaceAllUsesWith(zero);
 	I.eraseFromParent();
 
-	errs() << "Done erasing\n";
   }
 
 
-
+  void removeAndFixInst( Instruction &I, int nonConstOperandIndex ) {
+  	Value* nonConstOperand = I.getOperand(nonConstOperandIndex);
+	
+	errs() << "Removing inst: " << I << "\n";
+	// replace all uses of the removed instruction with the operands source
+	I.replaceAllUsesWith(nonConstOperand);
+	I.eraseFromParent();
+  }
 
   float threshold = 10;
   bool runOnFunction(Function &F) override {
@@ -70,24 +78,49 @@ struct ThreshPass : public FunctionPass {
     
     bool modified = false;
 	for (auto &BB : F) {
-		for (auto &I : BB) {		
+		for (auto instItr = BB.begin(); instItr != BB.end();) {
+			Instruction &I = *instItr;
+			++instItr;
+
 			if (I.getOpcode() == Instruction::FMul) {
 				if (ConstantFP *CI = dyn_cast<ConstantFP>(I.getOperand(0))) {
 					if((CI->getValueAPF()).convertToFloat() <= threshold/* CI->getValueAPF().compare( APFloat(threshold)) == APFloat::cmpLessThan*/) {
 						modified |= true;
-						removeAndFixInst(I, 1);
+						placeZeros(I, 1);
 						errs() << CI->getValueAPF().convertToFloat() << "\n";
 					}
 				} else if (ConstantFP *CI = dyn_cast<ConstantFP>(I.getOperand(1))) {
 					if( (CI->getValueAPF()).convertToFloat() <= threshold /*CI->getValueAPF().compare( APFloat(threshold)) ==  APFloat::cmpLessThan*/) {
 						modified |= true;
-						removeAndFixInst(I,0);
+						placeZeros(I,0);
 						errs() << CI->getValueAPF().convertToFloat() << "\n";
 					}
 				}
 			}
 		}
+
+		for (auto instItr = BB.begin(); instItr != BB.end();){
+			Instruction& I = *instItr;
+			++instItr;
+			errs() << "New inst " << I << "\n";
+			if (I.getOpcode() == Instruction::FAdd) {
+				if ( ConstantFP *CI = dyn_cast<ConstantFP>( I.getOperand(0) )) {
+					// if the first operand is constant
+					if (CI->isZero()) {
+						modified |= true;
+						removeAndFixInst(I, 1);
+					}
+				} else if ( ConstantFP *CI = dyn_cast<ConstantFP>( I.getOperand(1) )) {
+					// if the second operand is constant
+					if (CI->isZero()) {
+						modified |= true;
+						removeAndFixInst(I, 0);		
+					}
+				}
+			}
+		}
 	}
+
 	
     return modified;
   }
