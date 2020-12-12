@@ -39,10 +39,14 @@ SIZE=100
 		#time ./optimized < ../convolution/inputbig.txt
 
 		
-		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -mem2reg -sccp -sroa -sccp -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O1 > opt.bc 2> /dev/null 
+		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -mem2reg -sccp -sroa -sccp -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O1 > opt1.bc 2> /dev/null 
 	
 	
-		clang opt.bc -o optimized
+		clang opt1.bc -o optimized
 		time ./optimized < ../convolution/inputbig.txt
 	
+		bash ../viz.sh opt
+		bash ../viz.sh opt1
+
+
 	done
