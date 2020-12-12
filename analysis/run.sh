@@ -23,7 +23,7 @@ SIZE=100
 			done
 		done
 
-		cat data.c
+		#cat data.c
 
 
 		PATH_MYPASS=~/projects/583project/build/convpass/LLVMCONV.so ### Action Required: Specify the path to your pass ###
@@ -33,7 +33,7 @@ SIZE=100
 		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -convpass -mem2reg -sccp -sroa -sccp -threshpass -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O1 > opt.bc 2> /dev/null 
 
 		clang opt.bc -o optimized
-		time ./optimized < ../convolution/inputbig.txt
+		time ./optimized < ../convolution/inputbig.txt | grep real
 		#chmod +x optimized
 
 		#time ./optimized < ../convolution/inputbig.txt
@@ -42,11 +42,11 @@ SIZE=100
 		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -mem2reg -sccp -sroa -sccp -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O1 > opt1.bc 2> /dev/null 
 	
 	
-		clang opt1.bc -o optimized
-		time ./optimized < ../convolution/inputbig.txt
+		#clang opt1.bc -o optimized
+		#time ./optimized < ../convolution/inputbig.txt
 	
-		bash ../viz.sh opt
-		bash ../viz.sh opt1
-
+		#bash ../viz.sh opt
+		#bash ../viz.sh opt1
+ 
 
 	done
