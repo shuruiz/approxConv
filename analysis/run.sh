@@ -15,9 +15,9 @@ SIZE=100
 		do
 			for ((j=1;j<=COLS;j++)); do
 				if [ "$NUMSPARSE" -lt "$SPARSITY" ]; then
-    				sed -i s/@$i-$j/10/ data.c;
+    				sed -i s/@$i-$j/1/ data.c;
 				else
-					sed -i s/@$i-$j/100/ data.c;
+					sed -i s/@$i-$j/1000/ data.c;
 				fi
 				NUMSPARSE=$((NUMSPARSE + 1));
 			done
@@ -30,7 +30,7 @@ SIZE=100
 		NAME_MYPASS=-convpass ### Action Required: Specify the name for your pass ###
 		BENCH=data.c
 
-		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -convpass -mem2reg -sccp -sroa -sccp -threshpass -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O3 > opt.bc 2> /dev/null 
+		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -convpass -mem2reg -sccp -sroa -sccp -threshpass -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O1 > opt.bc 2> /dev/null 
 
 		clang opt.bc -o optimized
 		time ./optimized < ../convolution/inputbig.txt
@@ -39,7 +39,7 @@ SIZE=100
 		#time ./optimized < ../convolution/inputbig.txt
 
 		
-		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -mem2reg -sccp -sroa -sccp -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O3 > opt.bc 2> /dev/null 
+		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -mem2reg -sccp -sroa -sccp -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O1 > opt.bc 2> /dev/null 
 	
 	
 		clang opt.bc -o optimized
