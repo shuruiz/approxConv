@@ -54,6 +54,7 @@ int main(){
 	for (int i=0; i < 996*996; ++i) {
     	fprintf(stdout, "%f ", output[0]);	
 	}
+	fprintf(stdout, "\n");
 
 
 	
