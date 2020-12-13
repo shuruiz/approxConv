@@ -38,6 +38,7 @@ SIZE=100
 
 		echo -n "$SPARSITY," >> sparsityruntime.out
 		{ time ./optimized < ../convolution/inputbig.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 | xargs echo -n >> sparsityruntime.out
+		$OURPASSVAL=$(./optimized)
 		
 		#chmod +x optimized
 
@@ -48,6 +49,7 @@ SIZE=100
 	
 		echo -n , >> sparsityruntime.out
 		clang opt1.bc -o optimized
+		$BASELINEVAL=$(./optimized)
 		#time ./optimized < ../convolution/inputbig.txt
 		{ time ./optimized < ../convolution/inputbig.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 >> sparsityruntime.out
 	

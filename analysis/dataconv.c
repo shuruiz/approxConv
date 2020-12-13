@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-
 #define IH 1000
 #define IW 1000
 
@@ -51,7 +50,14 @@ int main(){
     }
 
     testloops(input, output);
-    //int tot=0;
+    	
+	for (int i=0; i < 996*996; ++i) {
+    	fprintf(stdout, "%f ", output[0]);	
+	}
+
+
+	
+	//int tot=0;
     //for(int i=0; i<10; i++) {
     //    //tot+=1;
     //}
