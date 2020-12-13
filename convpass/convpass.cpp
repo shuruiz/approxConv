@@ -175,8 +175,8 @@ struct ConvPass : public FunctionPass {
         */
         BasicBlock *PreHeader = L->getLoopPreheader();
         BasicBlock *Header = L->getHeader();
-	unsigned count = 5;
-	unsigned tripCount = 5;
+	unsigned count = 10;
+	unsigned tripCount = 10;
 	bool force = false;
 	bool allowRuntime = true;
 	bool allowExpensiveTripCount = false;

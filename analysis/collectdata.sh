@@ -1,10 +1,10 @@
 #!/bin/bash
-cp datatemplate.c data.c
+cp dataconv.c data.c
 
 ROWS=5
 COLS=5
 
-SPARSITY=3
+SPARSITY=20
 
 
 NUMSPARSE=0
