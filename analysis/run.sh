@@ -2,7 +2,7 @@
 #!/bin/bash
 
 # make output data file
-echo  %sparsity,runtime,baseline,%error > sparsityruntime.out
+echo  %sparsity,runtime,baseline > sparsityruntime.out
 
 ROWS=10
 COLS=10
@@ -38,7 +38,6 @@ SIZE=100
 
 		echo -n "$SPARSITY," >> sparsityruntime.out
 		{ time ./optimized < ../convolution/inputbig.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 | xargs echo -n >> sparsityruntime.out
-		./optimized > errorcheck.out
 
 		#chmod +x optimized
 
@@ -51,15 +50,5 @@ SIZE=100
 		clang opt1.bc -o optimized
 		#time ./optimized < ../convolution/inputbig.txt
 		{ time ./optimized < ../convolution/inputbig.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 >> sparsityruntime.out
-		./optimized >> errorcheck.out
-		
-		echo -n , >> sparsityruntime.out
-		./calcerror < errorcheck.out >> sparsityruntime.out
-
-		out
-
-		#bash ../viz.sh opt
-		#bash ../viz.sh opt1
- 
 
 	done
