@@ -1,4 +1,4 @@
-# CompileTimeApproximateConvolution
+# Compile Time Approximate Convolution
 
 This project is an attempt to optimize sparse-kernel convolutions at compile time by removing computations involving elements of the kernel that are below a certain threshold.
 This method results in a significant speedup while introducing a very small amount of error.
