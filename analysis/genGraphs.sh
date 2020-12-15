@@ -3,6 +3,8 @@
 		NAME_MYPASS=-convpass ### Action Required: Specify the name for your pass ###
 		BENCH=dataconvgen.c
 
+		sed -n 18,22p dataconvgen.c		
+		
 		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} > opt1.bc 2> /dev/null 
 		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -convpass > opt2.bc 2> /dev/null 
 		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -convpass -mem2reg -sccp -sroa -sccp > opt3.bc 2> /dev/null 

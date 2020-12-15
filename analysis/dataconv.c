@@ -35,7 +35,6 @@ const float array[10][10] ={
 	  }
 	}
     }
-    fprintf(stdout, "%f\n", output[0]);
 }
 
 

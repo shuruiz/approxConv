@@ -48,15 +48,16 @@ int main(){
         scanf("%f", input + i);
     }
 
+	for (int i=0; i< outH*outW; ++i) {
+		output[i] = 0;
+	}
+
     testloops(input, output);
     	
-	for (int i=0; i < 996*996; ++i) {
-    	fprintf(stdout, "%f ", output[i]);	
+	for (int i=0; i < outW*outH; ++i) {
+    	fprintf(stdout, "%d\n",(int)(output[i]));	
 	}
-	fprintf(stdout, "\n");
 
-
-	
 	//int tot=0;
     //for(int i=0; i<10; i++) {
     //    //tot+=1;

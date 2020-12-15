@@ -37,26 +37,28 @@ SIZE=100
 		clang opt.bc -o optimized
 
 		echo -n "$SPARSITY," >> sparsityruntime.out
-		{ time ./optimized < ../convolution/inputbig.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 | xargs echo -n >> sparsityruntime.out
-		./optimized < ../convolution/inputbig.txt > errorcheck.out
-		
+		{ time ./optimized < ../convolution/inputbignonzero.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 | xargs echo -n >> sparsityruntime.out
+		./optimized < ../convolution/inputbignonzero.txt > errorcheck.out
+			
 		#chmod +x optimized
 
 		#time ./optimized < ../convolution/inputbig.txt
-
 		
-		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -mem2reg -sccp -sroa -sccp -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O1 > opt1.bc 2> /dev/null 
+		
+		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -mem2reg -sccp -sroa -sccp -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O1 > opt1.bc 2> /dev/null 
 	
 		echo -n , >> sparsityruntime.out
 		clang opt1.bc -o optimized
 		#time ./optimized < ../convolution/inputbig.txt
-		{ time ./optimized < ../convolution/inputbig.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 | xargs echo -n >> sparsityruntime.out
-		./optimized < ../convolution/inputbig.txt >> errorcheck.out
+		{ time ./optimized < ../convolution/inputbignonzero.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 | xargs echo -n >> sparsityruntime.out
+		./optimized < ../convolution/inputbignonzero.txt >> errorcheck.out
 		
 		echo -n , >> sparsityruntime.out
 		./calcerror < errorcheck.out >> sparsityruntime.out
 
 		#bash ../viz.sh opt
 		#bash ../viz.sh opt1
+
+		./optimized < ../convolution/inputbignonzero.txt > errorcheck2.out
 
 	done

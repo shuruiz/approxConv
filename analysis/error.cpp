@@ -1,22 +1,30 @@
 #include <iostream>
 
+#define outH 991
+#define outW 991
 
 int main(){
 	
-	float passval[996*996];
-	float baseval[996*996];
+	int passval[outW*outH];
+	int baseval[outW*outH];
 
 	int input;
-	for(int i=0; i < 996*996; ++i)
-		std::cin >> passval[i];
-	for(int i=0; i < 996*996; ++i)
-		std::cin >> baseval[i];
+	for(int i=0; i < outW*outH; ++i) {
+		std::cin >> input;
+		passval[i] = input;
+	}
+		
+	for(int i=0; i < outW*outH; ++i) {
+		std::cin >> input;
+		baseval[i] = input;
+	}
 
 	double sumpercenterror = 0;
-	for(int i=0; i < 10; ++i){
+	for(int i=0; i <outW*outH; ++i){
+		if (baseval[i] == 0) std::cout << "Zero\n";
 		sumpercenterror += (double)(baseval[i] - passval[i])/((double) baseval[i]);
 	}
-	double avgpercenterror = sumpercenterror/((double)996*996);
+	double avgpercenterror = sumpercenterror/((double)outW*outH);
 	
 	std::cout << avgpercenterror << "\n";
 }

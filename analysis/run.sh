@@ -26,7 +26,7 @@ SIZE=100
 		done
 
 		#cat data.c
-
+		sed -n 17,26p data.c		
 
 		PATH_MYPASS=~/projects/583project/build/convpass/LLVMCONV.so ### Action Required: Specify the path to your pass ###
 		NAME_MYPASS=-convpass ### Action Required: Specify the name for your pass ###
@@ -38,17 +38,24 @@ SIZE=100
 
 		echo -n "$SPARSITY," >> sparsityruntime.out
 		{ time ./optimized < ../convolution/inputbig.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 | xargs echo -n >> sparsityruntime.out
-
+		
 		#chmod +x optimized
-
-		#time ./optimized < ../convolution/inputbig.txt
+		
+		echo -n "Optimized time: "
+		time ./optimized < ../convolution/inputbig.txt | grep real | awk '{print $2}' | cut -c 3- | cut -c -5
 
 		
 		clang -emit-llvm -S ${BENCH} -o - | sed s/optnone// | opt -load ${PATH_MYPASS} -mem2reg -sccp -sroa -sccp -mem2reg -sroa -mem2reg -die -dse -adce -sccp -O1 > opt1.bc 2> /dev/null 
 	
 		echo -n , >> sparsityruntime.out
 		clang opt1.bc -o optimized
-		#time ./optimized < ../convolution/inputbig.txt
+		echo -n "Baseline time: "
+		time ./optimized < ../convolution/inputbig.txt | grep real | awk '{print $2}' | cut -c 3- | cut -c -5
 		{ time ./optimized < ../convolution/inputbig.txt > /dev/null; } 2>&1 | grep real | awk '{print $2}' | cut -c 3- | cut -c -5 >> sparsityruntime.out
-
+		
+		echo
+		echo ---------------------------------------------------------------------------------------------------------------
+		echo
+		echo
+		
 	done
